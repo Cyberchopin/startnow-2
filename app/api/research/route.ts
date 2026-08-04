@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { researchDecisions, studyResponses } from "../../../db/schema";
 import { getResearchOwner } from "../../research-auth";
+import { redisCreateDecision, redisListResearch, redisResearchConfigured, redisUpdateStudyResponse } from "../../redis-research";
 
 const CATEGORIES = ["unclassified", "onboarding", "mission", "timer", "proof", "retention", "accessibility", "other"];
 const REVIEW_STATUSES = ["new", "reviewed", "actioned"];
@@ -19,6 +20,7 @@ async function rejectUnlessOwner() {
 export async function GET() {
   const denied = await rejectUnlessOwner();
   if (denied) return denied;
+  if (redisResearchConfigured()) return Response.json(await redisListResearch());
   const db = getDb();
   const responses = await db.select().from(studyResponses).orderBy(desc(studyResponses.createdAt), desc(studyResponses.id)).limit(100);
   const decisions = await db.select().from(researchDecisions).orderBy(desc(researchDecisions.createdAt), desc(researchDecisions.id)).limit(100);
@@ -33,6 +35,10 @@ export async function PATCH(request: Request) {
   const category = text(body.category, 30);
   const reviewStatus = text(body.reviewStatus, 20);
   if (!Number.isInteger(id) || !CATEGORIES.includes(category) || !REVIEW_STATUSES.includes(reviewStatus)) return Response.json({ error: "Invalid classification." }, { status: 400 });
+  if (redisResearchConfigured()) {
+    await redisUpdateStudyResponse(id, category, reviewStatus);
+    return Response.json({ ok: true });
+  }
   const db = getDb();
   await db.update(studyResponses).set({ category, reviewStatus }).where(eq(studyResponses.id, id));
   return Response.json({ ok: true });
@@ -48,6 +54,10 @@ export async function POST(request: Request) {
   const rationale = text(body.rationale, 600);
   const status = text(body.status, 20);
   if (userSaid.length < 8 || weChanged.length < 8 || rationale.length < 8 || !DECISION_STATUSES.includes(status)) return Response.json({ error: "Complete all decision fields with concrete evidence." }, { status: 400 });
+  if (redisResearchConfigured()) {
+    const decision = await redisCreateDecision({ responseId, userSaid, weChanged, rationale, status });
+    return Response.json({ decision }, { status: 201 });
+  }
   const db = getDb();
   const [decision] = await db.insert(researchDecisions).values({ responseId, userSaid, weChanged, rationale, status }).returning();
   if (responseId) await db.update(studyResponses).set({ reviewStatus: "actioned" }).where(eq(studyResponses.id, responseId));
