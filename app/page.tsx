@@ -5,6 +5,8 @@ import { buildFallbackMission, isMissionPlan, type Friction, type MissionInput, 
 
 type Mode = "checkin" | "mission" | "running" | "proof" | "complete";
 type View = "today" | "journeys" | "insights" | "study";
+type VoicePersona = "Sulafat" | "Achird" | "Achernar";
+type VoiceDelivery = "idle" | "loading" | "natural" | "browser";
 type StudySummary = {
   responses: number;
   averageUsefulness: number;
@@ -107,6 +109,8 @@ export default function Home() {
   const [seconds, setSeconds] = useState(60);
   const [running, setRunning] = useState(false);
   const [voice, setVoice] = useState(true);
+  const [voicePersona, setVoicePersona] = useState<VoicePersona>("Sulafat");
+  const [voiceDelivery, setVoiceDelivery] = useState<VoiceDelivery>("idle");
   const [missionPlan, setMissionPlan] = useState<MissionPlan | null>(null);
   const [missionStatus, setMissionStatus] = useState<"idle" | "loading" | "ready">("idle");
   const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
@@ -128,15 +132,56 @@ export default function Home() {
   const midPromptRef = useRef(false);
   const missionRequestRef = useRef(0);
   const missionAbortRef = useRef<AbortController | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
-  const speak = useCallback((text: string) => {
-    if (!voice || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
+  const stopVoice = useCallback(() => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = null;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  }, []);
+
+  const browserSpeak = useCallback((text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
+    const voices = window.speechSynthesis.getVoices();
+    utterance.voice = voices.find((item) => /Natural|Neural|Online/i.test(item.name) && item.lang.startsWith("en"))
+      ?? voices.find((item) => item.lang.startsWith("en"))
+      ?? null;
+    utterance.rate = 0.88;
+    utterance.pitch = 0.96;
     window.speechSynthesis.speak(utterance);
-  }, [voice]);
+    setVoiceDelivery("browser");
+  }, []);
+
+  const speak = useCallback(async (text: string) => {
+    if (!voice || typeof window === "undefined") return;
+    stopVoice();
+    setVoiceDelivery("loading");
+    try {
+      const response = await fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice: voicePersona }),
+      });
+      if (!response.ok) throw new Error("Natural voice unavailable");
+      const url = URL.createObjectURL(await response.blob());
+      audioUrlRef.current = url;
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.addEventListener("ended", () => {
+        if (audioUrlRef.current === url) URL.revokeObjectURL(url);
+        if (audioUrlRef.current === url) audioUrlRef.current = null;
+        if (audioRef.current === audio) audioRef.current = null;
+      }, { once: true });
+      await audio.play();
+      setVoiceDelivery("natural");
+    } catch {
+      browserSpeak(text);
+    }
+  }, [browserSpeak, stopVoice, voice, voicePersona]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -145,6 +190,8 @@ export default function Home() {
     });
     return () => cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => () => stopVoice(), [stopVoice]);
 
   useEffect(() => {
     if (hydrated) localStorage.setItem("start-now-progress", JSON.stringify(progress));
@@ -161,7 +208,7 @@ export default function Home() {
       setSeconds((value) => {
         if (value === 36 && !midPromptRef.current) {
           midPromptRef.current = true;
-          speak(missionPlan?.coachingCue || "Stay with the physical action. You do not need to solve the whole task.");
+          void speak(missionPlan?.coachingCue || "Stay with the physical action. You do not need to solve the whole task.");
         }
         if (value <= 1) {
           setRunning(false);
@@ -278,7 +325,7 @@ export default function Home() {
     midPromptRef.current = false;
     setMode("running");
     setRunning(true);
-    speak(`Your only mission is: ${mission} ${activeMissionPlan.coachingCue}`);
+    void speak(`Your only mission is: ${mission} ${activeMissionPlan.coachingCue}`);
   }
 
   function shrinkMission() {
@@ -287,7 +334,7 @@ export default function Home() {
     setSeconds(60);
     setMode("mission");
     setRunning(false);
-    speak("That step was still too large. We made it smaller. No judgment.");
+    void speak("That step was still too large. We made it smaller. No judgment.");
     void generateMission({
       task: task.trim(), kind, friction, energy, overwhelm,
       shrinkLevel: nextLevel,
@@ -505,7 +552,8 @@ export default function Home() {
             <div className="step-count">02 <span>/ 03</span></div><p className="eyebrow accent">ONE MOVE, NO PLAN</p><h1>Small enough to start.<br/>Concrete enough to count.</h1>
             <div className="mission-box"><div className="mission-label"><span>60-SECOND MISSION</span><b className={`source-badge ${activeMissionPlan.source}`}>{missionStatus === "loading" ? "REASONING…" : activeMissionPlan.source === "gemini" ? "GEMINI 3.6" : "SAFE FALLBACK"}</b></div><p>{mission}</p><small>Do only the physical action. Finishing is outside this contract.</small></div>
             <div className="friction-readout"><span>You selected</span><b>{frictionLabel(friction)}</b><small>Response: {FRICTIONS.find((item) => item.id === friction)?.action}</small></div>
-            <div className="coach-toggle"><div className="coach-avatar">◖</div><div><b>Voice Body Double</b><p>Two short prompts. No motivational lecture.</p></div><button className={voice ? "toggle on" : "toggle"} onClick={() => setVoice(!voice)} aria-label="Toggle voice" aria-pressed={voice}><i /></button></div>
+            <div className="coach-toggle"><div className="coach-avatar">◖</div><div><b>Natural Voice Body Double</b><p>{voiceDelivery === "loading" ? "Preparing a human voice…" : voiceDelivery === "browser" ? "Browser voice fallback active" : "Gemini TTS · browser fallback"}</p></div><button className={voice ? "toggle on" : "toggle"} onClick={() => { if (voice) stopVoice(); setVoice(!voice); }} aria-label="Toggle voice" aria-pressed={voice}><i /></button></div>
+            {voice && <div className="voice-personas" aria-label="Body Double voice"><button className={voicePersona === "Sulafat" ? "active" : ""} onClick={() => setVoicePersona("Sulafat")}><b>WARM</b><span>steady support</span></button><button className={voicePersona === "Achird" ? "active" : ""} onClick={() => setVoicePersona("Achird")}><b>FRIENDLY</b><span>gentle presence</span></button><button className={voicePersona === "Achernar" ? "active" : ""} onClick={() => setVoicePersona("Achernar")}><b>SOFT</b><span>low stimulation</span></button></div>}
             <div className="reasoning-note"><span>WHY THIS MOVE</span><p>{missionStatus === "loading" ? "Matching the action to your capacity, barrier, and successful starting pattern…" : activeMissionPlan.rationale}</p><small>{similarStarts.length >= 2 ? `Also sized from ${similarStarts.length} matching honest starts.` : "History sizing unlocks after two matching honest starts."}</small></div>
             <button className="primary pulse" disabled={missionStatus === "loading"} onClick={startMission}>{missionStatus === "loading" ? "ADAPTING THE NEXT MOVE…" : "START THE PHYSICAL ACTION"} <span>→</span></button><button className="secondary compact" disabled={missionStatus === "loading"} onClick={shrinkMission}>STILL TOO BIG — REMOVE ANOTHER STEP</button><button className="text-button" onClick={() => setMode("checkin")}>← Correct my inputs</button>
           </div>}
