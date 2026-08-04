@@ -7,6 +7,7 @@ interface Env {
   DB: D1Database;
   RESEARCH_OWNER_EMAILS?: string;
   STUDY_RATE_LIMIT_SALT?: string;
+  GEMINI_API_KEY?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -32,6 +33,7 @@ const worker = {
     (globalThis as typeof globalThis & { __START_NOW_DB__?: D1Database }).__START_NOW_DB__ = env.DB;
     (globalThis as typeof globalThis & { __START_NOW_OWNER_EMAILS__?: string }).__START_NOW_OWNER_EMAILS__ = env.RESEARCH_OWNER_EMAILS;
     (globalThis as typeof globalThis & { __START_NOW_RATE_LIMIT_SALT__?: string }).__START_NOW_RATE_LIMIT_SALT__ = env.STUDY_RATE_LIMIT_SALT;
+    (globalThis as typeof globalThis & { __START_NOW_GEMINI_API_KEY__?: string }).__START_NOW_GEMINI_API_KEY__ = env.GEMINI_API_KEY;
     const url = new URL(request.url);
 
     if (url.pathname === "/_vinext/image") {

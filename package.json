@@ -11,7 +11,7 @@
     "build": "bash scripts/build-verified.sh",
     "build:portable": "node scripts/build-portable.mjs",
     "start": "vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "validate:artifact:portable": "node scripts/validate-artifact.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",

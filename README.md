@@ -8,7 +8,7 @@
 
 Most productivity tools assume the user has already started. Start Now is built for the missing moment before that: when a job application, portfolio, or long-term project feels too unclear, too large, or too emotionally expensive to touch.
 
-It turns ten seconds of context into one physically startable action, stays present for the first minute, and awards progress only after proof of action.
+It turns ten seconds of context into one physically startable action. Gemini 3.6 Flash reasons over the user's current capacity and barrier, a deterministic safety path takes over when the model is unavailable, and progress is awarded only after proof of action.
 
 > **Current status:** functional research prototype. The hosted study remains controlled-access until production secrets, consent, and abuse controls complete final verification.
 
@@ -53,7 +53,8 @@ The product then learns from device-local history: common barriers, typical shri
 ## What works today
 
 - Adaptive check-in for energy, overwhelm, task type, and friction
-- Explainable 60-second mission generation
+- Gemini 3.6 Flash mission reasoning with structured output validation
+- Explainable deterministic fallback for outages, missing configuration, or invalid model output
 - Optional voice Body Double using browser speech synthesis
 - Timer, pause, stuck rescue, proof-of-start, and saved next action
 - Device-local journeys, honest streaks, and friction insights
@@ -97,12 +98,14 @@ Start Now is an experimental hackathon prototype—not a medical device, diagnos
 
 ```mermaid
 flowchart LR
-  A["Browser\nproduct history"] -->|"device-local"| B["Activation coach"]
-  B -->|"optional consent"| C["D1\nanonymous study"]
-  C -->|"owner-auth only"| D["Research console"]
+  A["Browser\nproduct history"] -->|"task + state only"| B["Gemini reasoner\nstore=false"]
+  B -->|"validated mission"| C["Activation coach"]
+  C -->|"optional consent"| D["D1 + private research"]
 ```
 
 - Personal activation history stays in the browser.
+- A mission request sends only the task text and compact check-in state; Gemini Interactions requests use `store=false`.
+- Model output must pass a strict schema and safety checks; otherwise the app uses its deterministic fallback.
 - Public study summaries contain aggregates, never raw written feedback.
 - Raw responses and product decisions require server-side owner authorization.
 - Submission attempts use an hourly salted hash; raw IP addresses are not stored.
@@ -114,6 +117,7 @@ flowchart LR
 - TypeScript, React 19, Next.js-compatible App Router
 - Vinext + Vite on Cloudflare Workers
 - Cloudflare D1 + Drizzle ORM
+- Gemini Interactions API with structured JSON output
 - Sign in with ChatGPT identity headers for protected research access
 - Dependency-light CSS interface
 
@@ -140,6 +144,7 @@ Set these values in `.env.local`; never commit that file:
 ```env
 RESEARCH_OWNER_EMAILS=owner@example.com
 STUDY_RATE_LIMIT_SALT=replace-with-a-long-random-value
+GEMINI_API_KEY=replace-with-a-server-side-google-ai-studio-key
 ```
 
 ## Validate
@@ -187,7 +192,7 @@ scripts/              Reproducible and portable build validation
 - [ ] Configure production secrets and complete the privacy test matrix
 - [ ] Run 5–10 consented adult usability sessions
 - [ ] Publish three evidence-linked product decisions
-- [ ] Add a genuine model-backed mission reasoner with safe deterministic fallback
+- [x] Add a genuine model-backed mission reasoner with schema validation and safe deterministic fallback
 - [ ] Record a concise public demo video
 
 ## License

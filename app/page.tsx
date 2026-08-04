@@ -1,12 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildFallbackMission, isMissionPlan, type Friction, type MissionInput, type MissionPlan, type TaskKind } from "./mission-reasoner";
 
 type Mode = "checkin" | "mission" | "running" | "proof" | "complete";
 type View = "today" | "journeys" | "insights" | "study";
-type TaskKind = "project" | "career";
-type Friction = "unclear" | "too_big" | "fear" | "boring" | "tired";
-
 type Activation = {
   id: string;
   date: string;
@@ -103,6 +101,8 @@ export default function Home() {
   const [seconds, setSeconds] = useState(60);
   const [running, setRunning] = useState(false);
   const [voice, setVoice] = useState(true);
+  const [missionPlan, setMissionPlan] = useState<MissionPlan | null>(null);
+  const [missionStatus, setMissionStatus] = useState<"idle" | "loading" | "ready">("idle");
   const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
   const [hydrated, setHydrated] = useState(false);
   const [studyRelationship, setStudyRelationship] = useState("prefer_not");
@@ -120,6 +120,8 @@ export default function Home() {
   const [studySummary, setStudySummary] = useState({ responses: 0, averageUsefulness: 0, averageUnderstood: 0, wouldReturnYes: 0 });
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const midPromptRef = useRef(false);
+  const missionRequestRef = useRef(0);
+  const missionAbortRef = useRef<AbortController | null>(null);
 
   const speak = useCallback((text: string) => {
     if (!voice || typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -153,7 +155,7 @@ export default function Home() {
       setSeconds((value) => {
         if (value === 36 && !midPromptRef.current) {
           midPromptRef.current = true;
-          speak("Stay with the physical action. You do not need to solve the whole task.");
+          speak(missionPlan?.coachingCue || "Stay with the physical action. You do not need to solve the whole task.");
         }
         if (value <= 1) {
           setRunning(false);
@@ -164,7 +166,7 @@ export default function Home() {
       });
     }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [running, speak]);
+  }, [running, speak, missionPlan?.coachingCue]);
 
   const level = Math.floor(progress.xp / 100) + 1;
   const levelProgress = progress.xp % 100;
@@ -212,25 +214,43 @@ export default function Home() {
     });
   }, [progress.history]);
 
-  const mission = useMemo(() => {
-    const subject = task.trim() || (kind === "career" ? "one saved job listing" : "your project");
-    if (microLevel >= 2) return kind === "career"
-      ? `Open the browser and search for “${subject}”. Stop there.`
-      : `Open the folder or file for “${subject}”. Stop there.`;
-    if (microLevel === 1 || energy === 1 || overwhelm === 3 || friction === "tired") return kind === "career"
-      ? `Open “${subject}”. Do not apply yet.`
-      : `Open “${subject}”. You do not need to change anything.`;
-    if (friction === "fear") return kind === "career"
-      ? `Open “${subject}” and draft one deliberately imperfect sentence.`
-      : `Open “${subject}” and make one reversible, imperfect change.`;
-    if (friction === "unclear") return `Open “${subject}” and point to the exact place where you stopped.`;
-    if (friction === "boring") return kind === "career"
-      ? `Open “${subject}” and race the clock to copy one requirement.`
-      : `Open “${subject}” and make one visible change before the minute ends.`;
-    return kind === "career"
-      ? `Open “${subject}” and improve just one matching bullet.`
-      : `Open “${subject}” and make one visible change.`;
-  }, [task, kind, microLevel, energy, overwhelm, friction]);
+  const fallbackPlan = useMemo(() => buildFallbackMission({
+    task: task.trim() || (kind === "career" ? "one saved job listing" : "your project"),
+    kind,
+    friction,
+    energy,
+    overwhelm,
+    shrinkLevel: microLevel,
+    matchingStarts: similarStarts.length,
+    learnedShrinkLevel,
+  }), [task, kind, friction, energy, overwhelm, microLevel, similarStarts.length, learnedShrinkLevel]);
+  const activeMissionPlan = missionPlan || fallbackPlan;
+  const mission = activeMissionPlan.mission;
+
+  async function generateMission(input: MissionInput) {
+    const requestId = missionRequestRef.current + 1;
+    missionRequestRef.current = requestId;
+    missionAbortRef.current?.abort();
+    const controller = new AbortController();
+    missionAbortRef.current = controller;
+    setMissionPlan(buildFallbackMission(input));
+    setMissionStatus("loading");
+
+    try {
+      const response = await fetch("/api/mission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+        signal: controller.signal,
+      });
+      const result = await response.json() as unknown;
+      if (requestId === missionRequestRef.current && response.ok && isMissionPlan(result)) setMissionPlan(result);
+    } catch {
+      // The deterministic mission already shown is the intentional safe fallback.
+    } finally {
+      if (requestId === missionRequestRef.current) setMissionStatus("ready");
+    }
+  }
 
   function prepareMission() {
     if (task.trim().length < 3) return;
@@ -240,21 +260,34 @@ export default function Home() {
     setProof("");
     setNextEntry("");
     setAfterLoad(overwhelm);
+    void generateMission({
+      task: task.trim(), kind, friction, energy, overwhelm,
+      shrinkLevel: learnedShrinkLevel,
+      matchingStarts: similarStarts.length,
+      learnedShrinkLevel,
+    });
   }
 
   function startMission() {
     midPromptRef.current = false;
     setMode("running");
     setRunning(true);
-    speak(`Your only mission is: ${mission} I am right here. Begin with your hands, not another plan.`);
+    speak(`Your only mission is: ${mission} ${activeMissionPlan.coachingCue}`);
   }
 
   function shrinkMission() {
-    setMicroLevel((value) => Math.min(2, value + 1));
+    const nextLevel = Math.min(2, microLevel + 1);
+    setMicroLevel(nextLevel);
     setSeconds(60);
     setMode("mission");
     setRunning(false);
     speak("That step was still too large. We made it smaller. No judgment.");
+    void generateMission({
+      task: task.trim(), kind, friction, energy, overwhelm,
+      shrinkLevel: nextLevel,
+      matchingStarts: similarStarts.length,
+      learnedShrinkLevel,
+    });
   }
 
   function finish() {
@@ -297,6 +330,7 @@ export default function Home() {
 
   function resetToToday() {
     window.speechSynthesis?.cancel();
+    missionAbortRef.current?.abort();
     setRunning(false);
     setMode("checkin");
     setView("today");
@@ -305,6 +339,8 @@ export default function Home() {
     setNextEntry("");
     setSeconds(60);
     setMicroLevel(0);
+    setMissionPlan(null);
+    setMissionStatus("idle");
   }
 
   function resumeLast() {
@@ -315,7 +351,10 @@ export default function Home() {
     setMode("mission");
     setView("today");
     setSeconds(60);
-    setMicroLevel(0);
+    const matching = progress.history.filter((item) => item.kind === progress.lastKind && item.friction === progress.lastFriction);
+    const learned = matching.length >= 2 ? Math.min(2, Math.round(matching.reduce((sum, item) => sum + item.shrinkCount, 0) / matching.length)) : 0;
+    setMicroLevel(learned);
+    void generateMission({ task: progress.lastTask, kind: progress.lastKind, friction: progress.lastFriction, energy, overwhelm, shrinkLevel: learned, matchingStarts: matching.length, learnedShrinkLevel: learned });
   }
 
   function resumeJourney(activation: Activation) {
@@ -325,10 +364,13 @@ export default function Home() {
     setNextEntry(activation.resumePoint);
     setEnergy(activation.energy);
     setOverwhelm(activation.overwhelmAfter);
-    setMicroLevel(0);
+    const matching = progress.history.filter((item) => item.kind === activation.kind && item.friction === activation.friction);
+    const learned = matching.length >= 2 ? Math.min(2, Math.round(matching.reduce((sum, item) => sum + item.shrinkCount, 0) / matching.length)) : 0;
+    setMicroLevel(learned);
     setSeconds(60);
     setView("today");
     setMode("mission");
+    void generateMission({ task: activation.task, kind: activation.kind, friction: activation.friction, energy: activation.energy, overwhelm: activation.overwhelmAfter, shrinkLevel: learned, matchingStarts: matching.length, learnedShrinkLevel: learned });
   }
 
   async function submitStudy() {
@@ -449,16 +491,17 @@ export default function Home() {
             <div className="kind-row"><button className={kind === "project" ? "kind active" : "kind"} onClick={() => setKind("project")} aria-pressed={kind === "project"}><span>⌁</span><b>Personal project</b><small>Build what matters</small></button><button className={kind === "career" ? "kind active" : "kind"} onClick={() => setKind("career")} aria-pressed={kind === "career"}><span>↗</span><b>Job application</b><small>Move your future</small></button></div>
             <div className="friction-group"><label>SELECT THE MAIN BARRIER</label><div className="friction-options">{FRICTIONS.map((item) => <button key={item.id} className={friction === item.id ? "active" : ""} onClick={() => setFriction(item.id)} aria-pressed={friction === item.id}><span>{friction === item.id ? "✓" : "+"}</span>{item.label}</button>)}</div></div>
             <label className="task-input"><span>THE REAL THING YOU ARE AVOIDING</span><input value={task} onChange={(event) => setTask(event.target.value)} placeholder={kind === "project" ? "e.g. Build the working hackathon demo" : "e.g. Apply to the ML internship"} onKeyDown={(event) => event.key === "Enter" && prepareMission()} /></label>
+            <p className="ai-privacy">When Gemini is enabled, only this task text and your check-in state are sent for stateless reasoning. Start Now stores no model transcript.</p>
             <button className="primary" disabled={task.trim().length < 3} onClick={prepareMission}>GIVE ME ONE EXECUTABLE MOVE <span>→</span></button>
           </div>}
 
           {view === "today" && mode === "mission" && <div className="card mission-card">
             <div className="step-count">02 <span>/ 03</span></div><p className="eyebrow accent">ONE MOVE, NO PLAN</p><h1>Small enough to start.<br/>Concrete enough to count.</h1>
-            <div className="mission-box"><span>60-SECOND MISSION</span><p>{mission}</p><small>Do only the physical action. Finishing is outside this contract.</small></div>
+            <div className="mission-box"><div className="mission-label"><span>60-SECOND MISSION</span><b className={`source-badge ${activeMissionPlan.source}`}>{missionStatus === "loading" ? "REASONING…" : activeMissionPlan.source === "gemini" ? "GEMINI 3.6" : "SAFE FALLBACK"}</b></div><p>{mission}</p><small>Do only the physical action. Finishing is outside this contract.</small></div>
             <div className="friction-readout"><span>You selected</span><b>{frictionLabel(friction)}</b><small>Response: {FRICTIONS.find((item) => item.id === friction)?.action}</small></div>
             <div className="coach-toggle"><div className="coach-avatar">◖</div><div><b>Voice Body Double</b><p>Two short prompts. No motivational lecture.</p></div><button className={voice ? "toggle on" : "toggle"} onClick={() => setVoice(!voice)} aria-label="Toggle voice" aria-pressed={voice}><i /></button></div>
-            <p className={`adaptive-note ${similarStarts.length >= 2 ? "learned" : ""}`}>{similarStarts.length >= 2 ? <>History-sized from <b>{similarStarts.length} matching starts</b> · recommended shrink level {learnedShrinkLevel}</> : <>Rule-based intervention · <b>{microLevel ? `shrink level ${microLevel}` : "first attempt"}</b> · learning unlocks after 2 matching starts</>}</p>
-            <button className="primary pulse" onClick={startMission}>START THE PHYSICAL ACTION <span>→</span></button><button className="secondary compact" onClick={shrinkMission}>STILL TOO BIG — REMOVE ANOTHER STEP</button><button className="text-button" onClick={() => setMode("checkin")}>← Correct my inputs</button>
+            <div className="reasoning-note"><span>WHY THIS MOVE</span><p>{missionStatus === "loading" ? "Matching the action to your capacity, barrier, and successful starting pattern…" : activeMissionPlan.rationale}</p><small>{similarStarts.length >= 2 ? `Also sized from ${similarStarts.length} matching honest starts.` : "History sizing unlocks after two matching honest starts."}</small></div>
+            <button className="primary pulse" disabled={missionStatus === "loading"} onClick={startMission}>{missionStatus === "loading" ? "ADAPTING THE NEXT MOVE…" : "START THE PHYSICAL ACTION"} <span>→</span></button><button className="secondary compact" disabled={missionStatus === "loading"} onClick={shrinkMission}>STILL TOO BIG — REMOVE ANOTHER STEP</button><button className="text-button" onClick={() => setMode("checkin")}>← Correct my inputs</button>
           </div>}
 
           {view === "today" && mode === "running" && <div className="card timer-card"><p className="eyebrow accent">HANDS FIRST. PLANNING LATER.</p><div className="timer-ring" style={{"--progress": `${(seconds / 60) * 360}deg`} as React.CSSProperties}><div><span>{time}</span><small>UNTIL THE CHECK-IN</small></div></div><h2>{mission}</h2><div className="coach-speaking"><span className="sound-bars"><i/><i/><i/><i/></span><p>No need to finish. Create one visible trace.</p></div><div className="timer-actions"><button onClick={() => setRunning(!running)}>{running ? "PAUSE" : "RESUME"}</button><button onClick={() => { setRunning(false); setMode("proof"); }}>I TOOK THE ACTION ✓</button></div><button className="stuck-button" onClick={shrinkMission}>Still frozen — remove another step</button></div>}
