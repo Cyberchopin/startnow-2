@@ -5,6 +5,12 @@ import { buildFallbackMission, isMissionPlan, type Friction, type MissionInput, 
 
 type Mode = "checkin" | "mission" | "running" | "proof" | "complete";
 type View = "today" | "journeys" | "insights" | "study";
+type StudySummary = {
+  responses: number;
+  averageUsefulness: number;
+  averageUnderstood: number;
+  wouldReturnYes: number;
+};
 type Activation = {
   id: string;
   date: string;
@@ -117,7 +123,7 @@ export default function Home() {
   const [studyConsent, setStudyConsent] = useState(false);
   const [studyStatus, setStudyStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [studyError, setStudyError] = useState("");
-  const [studySummary, setStudySummary] = useState({ responses: 0, averageUsefulness: 0, averageUnderstood: 0, wouldReturnYes: 0 });
+  const [studySummary, setStudySummary] = useState<StudySummary>({ responses: 0, averageUsefulness: 0, averageUnderstood: 0, wouldReturnYes: 0 });
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const midPromptRef = useRef(false);
   const missionRequestRef = useRef(0);
@@ -146,7 +152,7 @@ export default function Home() {
 
   useEffect(() => {
     if (view !== "study") return;
-    fetch("/api/study").then((response) => response.json()).then((data) => setStudySummary(data)).catch(() => undefined);
+    fetch("/api/study").then((response) => response.json() as Promise<StudySummary>).then((data) => setStudySummary(data)).catch(() => undefined);
   }, [view]);
 
   useEffect(() => {
