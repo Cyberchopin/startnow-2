@@ -8,7 +8,9 @@
   "scripts": {
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "vite",
-    "build": "bash scripts/build-verified.sh",
+    "build": "node scripts/build-platform.mjs",
+    "build:sites": "bash scripts/build-verified.sh",
+    "build:vercel": "next build",
     "build:portable": "node scripts/build-portable.mjs",
     "start": "vinext start",
     "test": "npm run build && node --test tests/*.test.mjs",
