@@ -113,6 +113,7 @@ export default function Home() {
   const [voiceDelivery, setVoiceDelivery] = useState<VoiceDelivery>("idle");
   const [missionPlan, setMissionPlan] = useState<MissionPlan | null>(null);
   const [missionStatus, setMissionStatus] = useState<"idle" | "loading" | "ready">("idle");
+  const [recoveredDays, setRecoveredDays] = useState(0);
   const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
   const [hydrated, setHydrated] = useState(false);
   const [studyRelationship, setStudyRelationship] = useState("prefer_not");
@@ -268,7 +269,7 @@ export default function Home() {
   }, [progress.history]);
 
   const fallbackPlan = useMemo(() => buildFallbackMission({
-    task: task.trim() || (kind === "career" ? "one saved job listing" : "your project"),
+    task: task.trim() || (kind === "career" ? "one saved job listing" : kind === "learning" ? "one school assignment" : "your project"),
     kind,
     friction,
     energy,
@@ -378,6 +379,7 @@ export default function Home() {
       lastFriction: friction,
       history: [activation, ...current.history].slice(0, 50),
     }));
+    setRecoveredDays(!sameDay && gap > 1 && progress.lastActiveDate ? gap - 1 : 0);
     setMode("complete");
   }
 
@@ -394,6 +396,7 @@ export default function Home() {
     setMicroLevel(0);
     setMissionPlan(null);
     setMissionStatus("idle");
+    setRecoveredDays(0);
   }
 
   function resumeLast() {
@@ -505,8 +508,8 @@ export default function Home() {
           {view === "journeys" && <div className="card workspace-card">
             <div className="workspace-heading"><div><p className="eyebrow accent">LONG-TERM WORK, WITHOUT THE RESTART COST</p><h1>Your journeys</h1><p className="lead">Every honest start becomes a saved edge. Return to the edge instead of rebuilding the plan.</p></div><button className="new-journey" onClick={resetToToday}>+ NEW JOURNEY</button></div>
             {journeys.length === 0 ? <div className="empty-state"><span>⌁</span><h2>No journey exists yet.</h2><p>Your first honest start will create one automatically.</p><button className="primary" onClick={resetToToday}>CREATE THE FIRST START <span>→</span></button></div> : <div className="journey-list">{journeys.map((journey) => <article className="journey-item" key={journey.name.toLowerCase()}>
-              <div className={`journey-icon ${journey.kind}`}>{journey.kind === "career" ? "↗" : "⌁"}</div>
-              <div className="journey-main"><span>{journey.kind === "career" ? "CAREER" : "PERSONAL PROJECT"}</span><h2>{journey.name}</h2><p>{journey.latest.resumePoint}</p><div><small>{journey.starts} honest start{journey.starts === 1 ? "" : "s"}</small><small>{journey.average}s avg. ignition</small><small>Top barrier: {frictionLabel(journey.commonBarrier)}</small></div></div>
+              <div className={`journey-icon ${journey.kind}`}>{journey.kind === "career" ? "↗" : journey.kind === "learning" ? "◇" : "⌁"}</div>
+              <div className="journey-main"><span>{journey.kind === "career" ? "CAREER" : journey.kind === "learning" ? "LEARNING" : "PERSONAL PROJECT"}</span><h2>{journey.name}</h2><p>{journey.latest.resumePoint}</p><div><small>{journey.starts} honest start{journey.starts === 1 ? "" : "s"}</small><small>{journey.average}s avg. ignition</small><small>Top barrier: {frictionLabel(journey.commonBarrier)}</small></div></div>
               <button className="journey-resume" onClick={() => resumeJourney(journey.latest)}>RESUME<br/><span>WITHOUT REPLANNING →</span></button>
             </article>)}</div>}
           </div>}
@@ -541,9 +544,9 @@ export default function Home() {
             <div className="step-count">01 <span>/ 03</span></div><p className="eyebrow accent">CHECK IN, THEN ACT</p><h1>What is blocking the start?</h1><p className="lead">Ten seconds of context. Then the interface stops asking questions.</p>
             <div className="scale-group"><div className="scale-title"><label>ENERGY</label><span>{["Drained", "Low", "Ready"][energy - 1]}</span></div><div className="segmented">{[1,2,3].map((n) => <button key={n} className={energy === n ? "selected" : ""} onClick={() => setEnergy(n)} aria-pressed={energy === n}><i />{["Drained", "Low", "Ready"][n-1]}</button>)}</div></div>
             <div className="scale-group"><div className="scale-title"><label>OVERWHELM</label><span>{["Clear", "Buzzing", "Flooded"][overwhelm - 1]}</span></div><div className="segmented">{[1,2,3].map((n) => <button key={n} className={overwhelm === n ? "selected warm" : ""} onClick={() => setOverwhelm(n)} aria-pressed={overwhelm === n}><i />{["Clear", "Buzzing", "Flooded"][n-1]}</button>)}</div></div>
-            <div className="kind-row"><button className={kind === "project" ? "kind active" : "kind"} onClick={() => setKind("project")} aria-pressed={kind === "project"}><span>⌁</span><b>Personal project</b><small>Build what matters</small></button><button className={kind === "career" ? "kind active" : "kind"} onClick={() => setKind("career")} aria-pressed={kind === "career"}><span>↗</span><b>Job application</b><small>Move your future</small></button></div>
+            <div className="kind-row"><button className={kind === "project" ? "kind active" : "kind"} onClick={() => setKind("project")} aria-pressed={kind === "project"}><span>⌁</span><b>Personal project</b><small>Build what matters</small></button><button className={kind === "career" ? "kind active" : "kind"} onClick={() => setKind("career")} aria-pressed={kind === "career"}><span>↗</span><b>Job application</b><small>Move your future</small></button><button className={kind === "learning" ? "kind active" : "kind"} onClick={() => setKind("learning")} aria-pressed={kind === "learning"}><span>◇</span><b>School assignment</b><small>Begin without shame</small></button></div>
             <div className="friction-group"><label>SELECT THE MAIN BARRIER</label><div className="friction-options">{FRICTIONS.map((item) => <button key={item.id} className={friction === item.id ? "active" : ""} onClick={() => setFriction(item.id)} aria-pressed={friction === item.id}><span>{friction === item.id ? "✓" : "+"}</span>{item.label}</button>)}</div></div>
-            <label className="task-input"><span>THE REAL THING YOU ARE AVOIDING</span><input value={task} onChange={(event) => setTask(event.target.value)} placeholder={kind === "project" ? "e.g. Build the working hackathon demo" : "e.g. Apply to the ML internship"} onKeyDown={(event) => event.key === "Enter" && prepareMission()} /></label>
+            <label className="task-input"><span>THE REAL THING YOU ARE AVOIDING</span><input value={task} onChange={(event) => setTask(event.target.value)} placeholder={kind === "project" ? "e.g. Build the working hackathon demo" : kind === "learning" ? "e.g. Start the machine learning homework" : "e.g. Apply to the ML internship"} onKeyDown={(event) => event.key === "Enter" && prepareMission()} /></label>
             <p className="ai-privacy">When Gemini is enabled, only this task text and your check-in state are sent for stateless reasoning. Start Now stores no model transcript.</p>
             <button className="primary" disabled={task.trim().length < 3} onClick={prepareMission}>GIVE ME ONE EXECUTABLE MOVE <span>→</span></button>
           </div>}
@@ -569,7 +572,7 @@ export default function Home() {
             <button className="primary" disabled={!proofIsSpecific} onClick={finish}>COUNT THIS HONEST START <span>→</span></button><button className="secondary compact" onClick={shrinkMission}>I DIDN&apos;T ACTUALLY START — INTERVENE AGAIN</button>
           </div>}
 
-          {view === "today" && mode === "complete" && <div className="card complete-card"><div className="burst">✦</div><p className="eyebrow accent">EVIDENCE, NOT INTENTION</p><h1>You created a real starting point.</h1><p className="lead">Your barrier, intervention and time-to-action are now part of your friction fingerprint.</p><div className="reward-row"><div><span>+25</span><small>XP EARNED</small></div><div><span>{progress.streak}</span><small>REAL-DAY STREAK</small></div><div><span>{Math.max(1, 60 - seconds)}s</span><small>TIME TO ACTION</small></div></div><div className="saved-entry"><span>NEXT RESUME POINT</span><p>{progress.resumePoint}</p></div><button className="primary" onClick={() => setView("journeys")}>SEE THE UPDATED JOURNEY <span>→</span></button><button className="secondary" onClick={resetToToday}>START SOMETHING ELSE</button></div>}
+          {view === "today" && mode === "complete" && <div className="card complete-card"><div className="burst">✦</div><p className="eyebrow accent">EVIDENCE, NOT INTENTION</p><h1>You created a real starting point.</h1><p className="lead">Your barrier, intervention and time-to-action are now part of your friction fingerprint.</p>{recoveredDays > 0 && <div className="recovery-win"><span>RECOVERY COUNTS</span><b>You came back. That is progress.</b><p>After {recoveredDays} missed day{recoveredDays === 1 ? "" : "s"}, returning matters more than protecting a perfect streak.</p></div>}<div className="reward-row"><div><span>+25</span><small>XP EARNED</small></div><div><span>{progress.streak}</span><small>REAL-DAY STREAK</small></div><div><span>{Math.max(1, 60 - seconds)}s</span><small>TIME TO ACTION</small></div></div><div className="saved-entry"><span>NEXT RESUME POINT</span><p>{progress.resumePoint}</p></div><button className="primary" onClick={() => setView("journeys")}>SEE THE UPDATED JOURNEY <span>→</span></button><button className="secondary" onClick={resetToToday}>START SOMETHING ELSE</button></div>}
         </section>
       </div>
       <footer><span>START NOW · A SHIYUE WANG PROJECT</span><span>Local-first prototype · no diagnosis · no invented social proof</span></footer>

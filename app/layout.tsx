@@ -13,8 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Starter Project",
-  description: "A clean starting point for building your site.",
+  title: "Start Now — One Honest Start",
+  description: "A 60-second activation coach that turns overwhelm into one physically startable action.",
+  openGraph: {
+    title: "Start Now — One Honest Start",
+    description: "Turn overwhelm into one physically startable action.",
+    images: ["/start-now-product.jpg"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Start Now — One Honest Start",
+    description: "Turn overwhelm into one physically startable action.",
+    images: ["/start-now-product.jpg"],
+  },
   other: {
     "codex-preview": "development",
   },

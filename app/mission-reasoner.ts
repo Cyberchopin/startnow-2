@@ -1,4 +1,4 @@
-export type TaskKind = "project" | "career";
+export type TaskKind = "project" | "career" | "learning";
 export type Friction = "unclear" | "too_big" | "fear" | "boring" | "tired";
 export type Intervention = "clarify_entry" | "remove_scope" | "make_reversible" | "add_urgency" | "reduce_effort";
 
@@ -34,7 +34,7 @@ export function normalizeMissionInput(value: unknown): MissionInput | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
   const task = typeof input.task === "string" ? input.task.trim().replace(/\s+/g, " ").slice(0, 240) : "";
-  const kind = input.kind === "career" || input.kind === "project" ? input.kind : null;
+  const kind = input.kind === "career" || input.kind === "project" || input.kind === "learning" ? input.kind : null;
   const friction = typeof input.friction === "string" && input.friction in INTERVENTIONS ? input.friction as Friction : null;
   const energy = Number(input.energy);
   const overwhelm = Number(input.overwhelm);
@@ -65,25 +65,35 @@ export function buildFallbackMission(input: MissionInput): MissionPlan {
   if (input.shrinkLevel >= 2) {
     mission = input.kind === "career"
       ? `Open the browser and search for “${subject}”. Stop there.`
-      : `Open the folder or file for “${subject}”. Stop there.`;
+      : input.kind === "learning"
+        ? `Open “${subject}” and point to the first unanswered line. Stop there.`
+        : `Open the folder or file for “${subject}”. Stop there.`;
   } else if (input.shrinkLevel === 1 || input.energy === 1 || input.overwhelm === 3 || input.friction === "tired") {
     mission = input.kind === "career"
       ? `Open “${subject}”. Do not apply yet.`
-      : `Open “${subject}”. You do not need to change anything.`;
+      : input.kind === "learning"
+        ? `Open “${subject}”. Read only the first instruction.`
+        : `Open “${subject}”. You do not need to change anything.`;
   } else if (input.friction === "fear") {
     mission = input.kind === "career"
       ? `Open “${subject}” and draft one deliberately imperfect sentence.`
-      : `Open “${subject}” and make one reversible, imperfect change.`;
+      : input.kind === "learning"
+        ? `Open “${subject}” and write one deliberately rough answer fragment.`
+        : `Open “${subject}” and make one reversible, imperfect change.`;
   } else if (input.friction === "unclear") {
     mission = `Open “${subject}” and point to the exact place where you stopped.`;
   } else if (input.friction === "boring") {
     mission = input.kind === "career"
       ? `Open “${subject}” and race the clock to copy one requirement.`
-      : `Open “${subject}” and make one visible change before the minute ends.`;
+      : input.kind === "learning"
+        ? `Open “${subject}” and answer one tiny part before the minute ends.`
+        : `Open “${subject}” and make one visible change before the minute ends.`;
   } else {
     mission = input.kind === "career"
       ? `Open “${subject}” and improve just one matching bullet.`
-      : `Open “${subject}” and make one visible change.`;
+      : input.kind === "learning"
+        ? `Open “${subject}” and complete one visible answer fragment.`
+        : `Open “${subject}” and make one visible change.`;
   }
 
   const reasons: Record<Friction, string> = {

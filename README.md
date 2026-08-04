@@ -12,6 +12,8 @@ It turns ten seconds of context into one physically startable action. Gemini 3.6
 
 > **Current status:** functional research prototype. Public evidence collection requires the documented Redis and owner-secret environment variables before recruiting participants.
 
+**Live product:** [startnow-2.vercel.app](https://startnow-2.vercel.app)
+
 ![Start Now product check-in](public/start-now-product.jpg)
 
 ## The activation gap
@@ -31,7 +33,7 @@ Start Now focuses on a narrower, measurable question:
 
 ## Try the core loop in 90 seconds
 
-1. Choose a real long-term project or job application.
+1. Choose a real long-term project, job application, or school assignment.
 2. Check in with your energy, overwhelm, and current barrier.
 3. Receive one 60-second mission—not another plan.
 4. Start with an optional spoken Body Double beside you.
@@ -46,7 +48,7 @@ The product then learns from device-local history: common barriers, typical shri
 - **Activation, not organization:** the success event is beginning a real task.
 - **Adaptive shrinking:** missions respond to energy, anxiety, task type, friction, and prior starts.
 - **Proof before points:** vague intention does not advance the streak.
-- **Recovery over perfection:** returning after a missed day is treated as progress.
+- **Recovery over perfection:** returning after missed days is recognized and counted after one honest start.
 - **Explainable adaptation:** users can see why an action was made smaller.
 - **Evidence-to-decision loop:** private feedback can become a traceable **User said → We changed → Why** record.
 
@@ -58,6 +60,7 @@ The product then learns from device-local history: common barriers, typical shri
 - Optional Gemini 3.1 TTS Body Double with three voice personas and browser fallback
 - Timer, pause, stuck rescue, proof-of-start, and saved next action
 - Device-local journeys, honest streaks, and friction insights
+- A shame-free school-assignment path with learning-specific safe fallbacks
 - Anonymous 18+ usability-study flow backed by Cloudflare D1 on Sites or Upstash Redis on Vercel
 - Owner-only Research Console using trusted ChatGPT identity on Sites or a signed HttpOnly owner session on Vercel
 - Feedback classification and evidence-linked product decisions
