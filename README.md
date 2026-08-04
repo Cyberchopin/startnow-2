@@ -4,63 +4,110 @@
 ![Cloudflare Workers](https://img.shields.io/badge/runtime-Cloudflare%20Workers-F38020)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6)
 
-**An adaptive task-start coach for people who know what matters but still cannot begin.**
+**A 60-second activation coach for people who know what matters—but still cannot begin.**
 
-Start Now turns an overwhelming long-term project or job application into one concrete 60-second action. It targets the executive-function gap before productivity tools become useful: the moment between intention and physical action.
+Most productivity tools assume the user has already started. Start Now is built for the missing moment before that: when a job application, portfolio, or long-term project feels too unclear, too large, or too emotionally expensive to touch.
 
-> The hosted study is currently in controlled-access research mode. Public testing will open only after the research guardrails and consent workflow are verified.
+It turns ten seconds of context into one physically startable action, stays present for the first minute, and awards progress only after proof of action.
+
+> **Current status:** functional research prototype. The hosted study remains controlled-access until production secrets, consent, and abuse controls complete final verification.
 
 ![Start Now product check-in](public/start-now-product.jpg)
 
-## Why this is different
+## The activation gap
 
-Most productivity products optimize planning, schedules, or task volume. Start Now does not generate another plan. It asks for ten seconds of context, shrinks the next action until it is physically startable, stays present through the first minute, and requires proof before awarding a streak.
+Planning is not the same as starting. A user can have a perfect task list and still be unable to perform the first physical action.
 
-| User barrier | Product response | Evidence captured |
+Start Now focuses on a narrower, measurable question:
+
+> **Can the product reduce the time and emotional load between intention and action?**
+
+| Barrier in the user's words | Start Now changes | Signal captured |
 | --- | --- | --- |
-| “I do not know where to begin” | Clarifies one visible entry point | Time to start + proof |
-| “It feels too big” | Repeatedly removes scope | Number of mission shrinks |
-| “I am afraid I will do it badly” | Makes the action reversible | Before/after overwhelm |
-| “I have no energy” | Reduces physical effort | Return behavior + feedback |
+| “I don't know where to begin” | Exposes one visible entry point | Seconds to start |
+| “It feels too big” | Repeatedly removes scope | Mission shrink count |
+| “I'm afraid I'll do it badly” | Makes the action reversible | Overwhelm before/after |
+| “I have almost no energy” | Reduces physical effort | Completion and return behavior |
 
-## Working product
+## Try the core loop in 90 seconds
 
-- Adaptive energy, anxiety, task-type, and friction check-in
+1. Choose a real long-term project or job application.
+2. Check in with your energy, overwhelm, and current barrier.
+3. Receive one 60-second mission—not another plan.
+4. Start with an optional spoken Body Double beside you.
+5. If the mission is still too large, shrink it again or use stuck rescue.
+6. Submit specific proof of what physically changed.
+7. Save the exact re-entry point for the next session.
+
+The product then learns from device-local history: common barriers, typical shrink depth, ignition time, and whether starting actually reduced overwhelm.
+
+## Why this is not another to-do app
+
+- **Activation, not organization:** the success event is beginning a real task.
+- **Adaptive shrinking:** missions respond to energy, anxiety, task type, friction, and prior starts.
+- **Proof before points:** vague intention does not advance the streak.
+- **Recovery over perfection:** returning after a missed day is treated as progress.
+- **Explainable adaptation:** users can see why an action was made smaller.
+- **Evidence-to-decision loop:** private feedback can become a traceable **User said → We changed → Why** record.
+
+## What works today
+
+- Adaptive check-in for energy, overwhelm, task type, and friction
 - Explainable 60-second mission generation
 - Optional voice Body Double using browser speech synthesis
-- Pause, stuck rescue, proof-of-start, and saved next action
+- Timer, pause, stuck rescue, proof-of-start, and saved next action
 - Device-local journeys, honest streaks, and friction insights
-- Anonymous 18+ study flow backed by Cloudflare D1
+- Anonymous 18+ usability-study flow backed by Cloudflare D1
 - Owner-only Research Console with server-side authorization
-- Feedback classification and **User said → We changed → Why** decision log
-- Hashed hourly submission throttling, UUID validation, and honeypot defense
-- Responsive and reduced-motion-aware interface
+- Feedback classification and evidence-linked product decisions
+- Hashed hourly throttling, UUID validation, and honeypot defense
+- Responsive, keyboard-usable, reduced-motion-aware interface
 
-## Product and research flow
+## Product and research loop
 
 ```mermaid
 flowchart TD
-  A[Energy + anxiety check-in] --> B[Task + friction]
-  B --> C[60-second mission]
-  C --> D[Body Double + timer]
-  D --> E[Proof of start]
-  E --> F[Saved next action]
-  F --> G[Optional 18+ study]
-  G --> H[Private research console]
-  H --> I[Traceable product decision]
+  A["Energy + overwhelm"] --> B["Barrier + task"]
+  B --> C["60-second mission"]
+  C --> D["Body Double + timer"]
+  D --> E["Specific proof"]
+  E --> F["Saved re-entry point"]
+  F --> G["Optional adult study"]
+  G --> H["Private evidence review"]
+  H --> I["Traceable decision"]
 ```
 
-## Hackathon evidence standard
+## Evidence standard
 
-This repository deliberately separates product claims from evidence:
+This repository separates a polished prototype from a validated outcome.
 
-1. A streak advances only after a specific proof of action.
-2. The public study endpoint exposes aggregate metrics, never raw feedback.
-3. Raw responses require server-side owner authorization.
-4. Every product decision records the user evidence, the change, and the rationale.
-5. The next submission milestone is 5–10 consented adult usability sessions and at least three evidence-linked decisions.
+| Claim | Required evidence |
+| --- | --- |
+| A user started | Specific proof of a physical action |
+| A streak advanced | A completed, evidenced activation |
+| The intervention helped | Before/after overwhelm and ignition time |
+| A product change matters | A decision linked to consented feedback |
+| The prototype is ready to scale | Repeated behavior across real sessions |
 
-Start Now is an experimental hackathon prototype, not a medical device, diagnosis tool, or substitute for professional care.
+No fake traction is presented. The next evidence gate is **5–10 consented adult usability sessions**, followed by at least **three feedback-linked product decisions**.
+
+Start Now is an experimental hackathon prototype—not a medical device, diagnostic tool, or substitute for professional care.
+
+## Architecture and privacy boundary
+
+```mermaid
+flowchart LR
+  A["Browser\nproduct history"] -->|"device-local"| B["Activation coach"]
+  B -->|"optional consent"| C["D1\nanonymous study"]
+  C -->|"owner-auth only"| D["Research console"]
+```
+
+- Personal activation history stays in the browser.
+- Public study summaries contain aggregates, never raw written feedback.
+- Raw responses and product decisions require server-side owner authorization.
+- Submission attempts use an hourly salted hash; raw IP addresses are not stored.
+- Participants are asked not to submit names, contact details, schools, links, or diagnosis details.
+- The prototype accepts study consent only from adults 18+.
 
 ## Stack
 
@@ -97,18 +144,19 @@ STUDY_RATE_LIMIT_SALT=replace-with-a-long-random-value
 
 ## Validate
 
-Linux/macOS/WSL uses the bounded production build:
+Linux, macOS, and WSL use the bounded production build:
 
 ```bash
 npm run lint
-npm run build
+npm test
 ```
 
-Native Windows can run the portable equivalent:
+Native Windows can run the portable artifact checks:
 
 ```powershell
 npm run lint
 npm run build:portable
+npm run validate:artifact:portable
 ```
 
 Schema changes require a reviewed migration:
@@ -117,17 +165,7 @@ Schema changes require a reviewed migration:
 npm run db:generate
 ```
 
-GitHub Actions repeats install, lint, production build, artifact checks, and rendered-output tests for every PR.
-
-## Privacy and abuse controls
-
-- Participants are asked not to submit names, contact details, schools, links, or diagnosis details.
-- Consent is restricted to adults 18+ in this prototype.
-- Device keys must be valid UUIDs and are unique in D1.
-- Submission attempts are throttled with an hourly salted hash; raw IP addresses are not stored.
-- A hidden honeypot quietly drops obvious automated submissions.
-- `/api/research` authorizes every read and write on the server.
-- Production must configure `RESEARCH_OWNER_EMAILS` and a long random `STUDY_RATE_LIMIT_SALT` before public testing.
+GitHub Actions repeats dependency installation, linting, the production build, artifact validation, and rendered-output tests for every pull request.
 
 ## Repository map
 
@@ -141,12 +179,16 @@ scripts/              Reproducible and portable build validation
 .openai/hosting.json  Sites binding declaration
 ```
 
-## Project status
+## Roadmap to validation
 
-- Product experience: functional
-- Research Console: functional, owner-only
-- Public recruitment: intentionally not opened yet
-- Next gate: configure production secrets, validate abuse controls, then recruit real testers
+- [x] Complete the activation loop from check-in to proof
+- [x] Protect raw research data behind server-side owner authorization
+- [x] Add abuse controls and reproducible CI
+- [ ] Configure production secrets and complete the privacy test matrix
+- [ ] Run 5–10 consented adult usability sessions
+- [ ] Publish three evidence-linked product decisions
+- [ ] Add a genuine model-backed mission reasoner with safe deterministic fallback
+- [ ] Record a concise public demo video
 
 ## License
 
