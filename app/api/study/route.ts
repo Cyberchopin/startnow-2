@@ -1,6 +1,7 @@
 import { and, avg, count, eq } from "drizzle-orm";
 import { getD1, getDb } from "../../../db";
 import { studyResponses } from "../../../db/schema";
+import { redisCreateStudyResponse, redisRateLimited, redisResearchConfigured, redisStudySummary } from "../../redis-research";
 
 const RELATIONSHIPS = ["neurodivergent", "ally", "educator", "prefer_not"];
 const HARDEST_STEPS = ["checkin", "mission", "timer", "proof", "none"];
@@ -28,6 +29,7 @@ async function rateLimitKey(request: Request) {
 
 async function isRateLimited(request: Request) {
   const key = await rateLimitKey(request);
+  if (redisResearchConfigured()) return redisRateLimited(key, MAX_ATTEMPTS_PER_HOUR);
   const d1 = getD1();
   await d1.prepare(`
     INSERT INTO study_rate_limits (key, attempt_count, created_at)
@@ -41,6 +43,7 @@ async function isRateLimited(request: Request) {
 
 export async function GET() {
   try {
+    if (redisResearchConfigured()) return Response.json(await redisStudySummary());
     const db = getDb();
     const [summary] = await db.select({
       responses: count(),
@@ -80,6 +83,11 @@ export async function POST(request: Request) {
     if (containsLikelyContactInfo(`${feedback} ${changeRequest}`)) return Response.json({ error: "Please remove names, contact details, and links. This study is anonymous." }, { status: 400 });
     if (await isRateLimited(request)) return Response.json({ error: "Too many submission attempts. Please try again later." }, { status: 429, headers: { "Retry-After": "3600" } });
 
+    if (redisResearchConfigured()) {
+      await redisCreateStudyResponse({ participantKey, relationship, usefulness, feltUnderstood, hardestStep, wouldReturn, feedback, changeRequest });
+      const summary = await redisStudySummary();
+      return Response.json({ ok: true, responses: summary.responses }, { status: 201 });
+    }
     const db = getDb();
     await db.insert(studyResponses).values({ participantKey, relationship, usefulness, feltUnderstood, hardestStep, wouldReturn, feedback, changeRequest });
     const [summary] = await db.select({ responses: count() }).from(studyResponses);

@@ -10,7 +10,7 @@ Most productivity tools assume the user has already started. Start Now is built 
 
 It turns ten seconds of context into one physically startable action. Gemini 3.6 Flash reasons over the user's current capacity and barrier, a deterministic safety path takes over when the model is unavailable, and progress is awarded only after proof of action.
 
-> **Current status:** functional research prototype. The hosted study remains controlled-access until production secrets, consent, and abuse controls complete final verification.
+> **Current status:** functional research prototype. Public evidence collection requires the documented Redis and owner-secret environment variables before recruiting participants.
 
 ![Start Now product check-in](public/start-now-product.jpg)
 
@@ -55,11 +55,11 @@ The product then learns from device-local history: common barriers, typical shri
 - Adaptive check-in for energy, overwhelm, task type, and friction
 - Gemini 3.6 Flash mission reasoning with structured output validation
 - Explainable deterministic fallback for outages, missing configuration, or invalid model output
-- Optional voice Body Double using browser speech synthesis
+- Optional Gemini 3.1 TTS Body Double with three voice personas and browser fallback
 - Timer, pause, stuck rescue, proof-of-start, and saved next action
 - Device-local journeys, honest streaks, and friction insights
-- Anonymous 18+ usability-study flow backed by Cloudflare D1
-- Owner-only Research Console with server-side authorization
+- Anonymous 18+ usability-study flow backed by Cloudflare D1 on Sites or Upstash Redis on Vercel
+- Owner-only Research Console using trusted ChatGPT identity on Sites or a signed HttpOnly owner session on Vercel
 - Feedback classification and evidence-linked product decisions
 - Hashed hourly throttling, UUID validation, and honeypot defense
 - Responsive, keyboard-usable, reduced-motion-aware interface
@@ -100,7 +100,7 @@ Start Now is an experimental hackathon prototype—not a medical device, diagnos
 flowchart LR
   A["Browser\nproduct history"] -->|"task + state only"| B["Gemini reasoner\nstore=false"]
   B -->|"validated mission"| C["Activation coach"]
-  C -->|"optional consent"| D["D1 + private research"]
+  C -->|"optional consent"| D["D1 or Redis + private research"]
 ```
 
 - Personal activation history stays in the browser.
@@ -116,7 +116,7 @@ flowchart LR
 
 - TypeScript, React 19, Next.js-compatible App Router
 - Vinext + Vite on Cloudflare Workers
-- Cloudflare D1 + Drizzle ORM
+- Cloudflare D1 + Drizzle ORM on Sites; Upstash Redis REST on Vercel
 - Gemini Interactions API with structured JSON output
 - Sign in with ChatGPT identity headers for protected research access
 - Dependency-light CSS interface
@@ -145,7 +145,12 @@ Set these values in `.env.local`; never commit that file:
 RESEARCH_OWNER_EMAILS=owner@example.com
 STUDY_RATE_LIMIT_SALT=replace-with-a-long-random-value
 GEMINI_API_KEY=replace-with-a-server-side-google-ai-studio-key
+UPSTASH_REDIS_REST_URL=https://replace-with-your-upstash-endpoint
+UPSTASH_REDIS_REST_TOKEN=replace-with-the-standard-server-side-token
+RESEARCH_OWNER_SECRET=replace-with-a-long-unique-owner-secret
 ```
+
+On Vercel, provision Upstash Redis through Marketplace Storage and connect it to the project so the URL and token are injected automatically. Add `STUDY_RATE_LIMIT_SALT` and `RESEARCH_OWNER_SECRET` as encrypted Production and Preview variables, then redeploy. Never expose the standard Redis token to browser code.
 
 ## Validate
 
@@ -189,7 +194,7 @@ scripts/              Reproducible and portable build validation
 - [x] Complete the activation loop from check-in to proof
 - [x] Protect raw research data behind server-side owner authorization
 - [x] Add abuse controls and reproducible CI
-- [ ] Configure production secrets and complete the privacy test matrix
+- [ ] Configure Vercel Redis and owner secrets, then complete the privacy test matrix
 - [ ] Run 5–10 consented adult usability sessions
 - [ ] Publish three evidence-linked product decisions
 - [x] Add a genuine model-backed mission reasoner with schema validation and safe deterministic fallback
