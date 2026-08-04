@@ -7,6 +7,8 @@ const HIGH_RISK_TASK = /\b(?:suicide|kill myself|self[- ]?harm|build (?:a )?bomb
 
 declare global {
   var __START_NOW_GEMINI_API_KEY__: string | undefined;
+  var __START_NOW_EPHEMERAL_RATE_LIMIT_SALT__: string | undefined;
+  var __START_NOW_MISSION_RATE_LIMITS__: Map<string, number> | undefined;
 }
 
 const responseSchema = {
@@ -41,23 +43,35 @@ async function rateLimitKey(request: Request) {
     || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     || "unknown";
   const hour = Math.floor(Date.now() / 3_600_000);
-  const salt = globalThis.__START_NOW_RATE_LIMIT_SALT__ ?? process.env.STUDY_RATE_LIMIT_SALT;
-  if (!salt || salt.length < 24) throw new Error("Mission rate-limit salt is not configured.");
+  const configuredSalt = globalThis.__START_NOW_RATE_LIMIT_SALT__ ?? process.env.STUDY_RATE_LIMIT_SALT;
+  const salt = configuredSalt && configuredSalt.length >= 24
+    ? configuredSalt
+    : globalThis.__START_NOW_EPHEMERAL_RATE_LIMIT_SALT__ ??= crypto.randomUUID();
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${salt}:mission:${connectingIp}:${hour}`));
   return `mission:${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
 async function isRateLimited(request: Request) {
   const key = await rateLimitKey(request);
-  const d1 = getD1();
-  await d1.prepare(`
-    INSERT INTO study_rate_limits (key, attempt_count, created_at)
-    VALUES (?1, 1, ?2)
-    ON CONFLICT(key) DO UPDATE SET attempt_count = attempt_count + 1
-  `).bind(key, Date.now()).run();
-  const row = await d1.prepare("SELECT attempt_count FROM study_rate_limits WHERE key = ?1")
-    .bind(key).first<{ attempt_count: number }>();
-  return Number(row?.attempt_count || 0) > MAX_GENERATIONS_PER_HOUR;
+  try {
+    const d1 = getD1();
+    await d1.prepare(`
+      INSERT INTO study_rate_limits (key, attempt_count, created_at)
+      VALUES (?1, 1, ?2)
+      ON CONFLICT(key) DO UPDATE SET attempt_count = attempt_count + 1
+    `).bind(key, Date.now()).run();
+    const row = await d1.prepare("SELECT attempt_count FROM study_rate_limits WHERE key = ?1")
+      .bind(key).first<{ attempt_count: number }>();
+    return Number(row?.attempt_count || 0) > MAX_GENERATIONS_PER_HOUR;
+  } catch {
+    // Vercel does not provide the Cloudflare D1 binding used by ChatGPT Sites.
+    // Keep a best-effort per-instance limiter so Gemini still works there.
+    const counters = globalThis.__START_NOW_MISSION_RATE_LIMITS__ ??= new Map<string, number>();
+    const attempts = (counters.get(key) ?? 0) + 1;
+    counters.set(key, attempts);
+    if (counters.size > 1_000) counters.clear();
+    return attempts > MAX_GENERATIONS_PER_HOUR;
+  }
 }
 
 function extractStructuredText(payload: unknown): string | null {
