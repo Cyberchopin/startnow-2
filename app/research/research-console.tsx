@@ -30,7 +30,7 @@ type Decision = {
 const CATEGORIES = ["unclassified", "onboarding", "mission", "timer", "proof", "retention", "accessibility", "other"];
 const STATUSES = ["new", "reviewed", "actioned"];
 
-export default function ResearchConsole({ ownerName }: { ownerName: string }) {
+export default function ResearchConsole({ ownerName, authMode }: { ownerName: string; authMode: "chatgpt" | "secret" }) {
   const [responses, setResponses] = useState<StudyResponse[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,8 +100,13 @@ export default function ResearchConsole({ ownerName }: { ownerName: string }) {
     setSavingDecision(false);
   }
 
+  async function signOut() {
+    await fetch("/api/research/session", { method: "DELETE" }).catch(() => undefined);
+    window.location.assign("/");
+  }
+
   return <main className="research-console">
-    <header className="research-top"><Link className="brand" href="/"><span className="brand-mark">S</span><span>START NOW</span></Link><div><span>OWNER RESEARCH CONSOLE</span><b>{ownerName}</b><a href="/signout-with-chatgpt?return_to=/">Sign out</a></div></header>
+    <header className="research-top"><Link className="brand" href="/"><span className="brand-mark">S</span><span>START NOW</span></Link><div><span>OWNER RESEARCH CONSOLE</span><b>{ownerName}</b>{authMode === "chatgpt" ? <a href="/signout-with-chatgpt?return_to=/">Sign out</a> : <button onClick={signOut}>Sign out</button>}</div></header>
     <div className="research-wrap">
       <section className="research-title"><div><p>PRIVATE · SERVER-AUTHORIZED</p><h1>Turn user evidence into product decisions.</h1><span>Raw feedback never appears in the public product. Every shipped change should trace back to evidence.</span></div><Link href="/">Open public product →</Link></section>
       <section className="research-metrics"><div><span>RESPONSES</span><b>{metrics.count}</b><small>anonymous adults</small></div><div><span>USEFULNESS</span><b>{metrics.useful}</b><small>out of 5</small></div><div><span>FELT UNDERSTOOD</span><b>{metrics.understood}</b><small>out of 5</small></div><div><span>WOULD RETURN</span><b>{metrics.returnRate}%</b><small>unpaid intent</small></div><div><span>NEEDS REVIEW</span><b>{metrics.unreviewed}</b><small>unclassified evidence</small></div></section>
