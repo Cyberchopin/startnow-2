@@ -1,52 +1,78 @@
 # Start Now ⚡
 
+[![CI](https://github.com/Cyberchopin/startnow-2/actions/workflows/ci.yml/badge.svg)](https://github.com/Cyberchopin/startnow-2/actions/workflows/ci.yml)
+![Cloudflare Workers](https://img.shields.io/badge/runtime-Cloudflare%20Workers-F38020)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6)
+
 **An adaptive task-start coach for people who know what matters but still cannot begin.**
 
-Start Now turns an overwhelming goal—especially a long-term personal project or job application—into one concrete 60-second action. It combines a low-friction check-in, adaptive mission sizing, optional voice body doubling, proof of start, real streaks, and an evidence-driven research workflow.
+Start Now turns an overwhelming long-term project or job application into one concrete 60-second action. It targets the executive-function gap before productivity tools become useful: the moment between intention and physical action.
 
-🌐 Live product: https://start-now-ai.wangshiyue1128.chatgpt.site
+> The hosted study is currently in controlled-access research mode. Public testing will open only after the research guardrails and consent workflow are verified.
 
-## The problem
+![Start Now product check-in](public/start-now-product.jpg)
 
-Most productivity products optimize planning, scheduling, or task volume. They still assume the user can initiate the task. Start Now targets the moment before action: high anxiety, low energy, ambiguous next steps, perfectionism, and executive-function friction.
+## Why this is different
 
-## What is real in this build
+Most productivity products optimize planning, schedules, or task volume. Start Now does not generate another plan. It asks for ten seconds of context, shrinks the next action until it is physically startable, stays present through the first minute, and requires proof before awarding a streak.
 
-- Adaptive check-in for energy, anxiety, task type, and current friction
-- Rule-based generation of a concrete 60-second starting mission
-- Voice Body Double using browser speech synthesis
-- Pause, stuck rescue, proof-of-start, and next-action capture
-- Device-local history, streaks, journeys, and friction insights
-- Anonymous 18+ user-study flow backed by Cloudflare D1
+| User barrier | Product response | Evidence captured |
+| --- | --- | --- |
+| “I do not know where to begin” | Clarifies one visible entry point | Time to start + proof |
+| “It feels too big” | Repeatedly removes scope | Number of mission shrinks |
+| “I am afraid I will do it badly” | Makes the action reversible | Before/after overwhelm |
+| “I have no energy” | Reduces physical effort | Return behavior + feedback |
+
+## Working product
+
+- Adaptive energy, anxiety, task-type, and friction check-in
+- Explainable 60-second mission generation
+- Optional voice Body Double using browser speech synthesis
+- Pause, stuck rescue, proof-of-start, and saved next action
+- Device-local journeys, honest streaks, and friction insights
+- Anonymous 18+ study flow backed by Cloudflare D1
 - Owner-only Research Console with server-side authorization
-- Feedback categorization and review workflow
-- Traceable **User said → We changed → Why** product decision log
+- Feedback classification and **User said → We changed → Why** decision log
+- Hashed hourly submission throttling, UUID validation, and honeypot defense
 - Responsive and reduced-motion-aware interface
 
-## Product flow
+## Product and research flow
 
 ```mermaid
 flowchart TD
-  A[Energy + anxiety check-in] --> B[Choose task and friction]
-  B --> C[Receive a 60-second mission]
+  A[Energy + anxiety check-in] --> B[Task + friction]
+  B --> C[60-second mission]
   C --> D[Body Double + timer]
-  D --> E[Submit proof of start]
-  E --> F[Save next action + streak]
-  F --> G[Optional anonymous study]
+  D --> E[Proof of start]
+  E --> F[Saved next action]
+  F --> G[Optional 18+ study]
   G --> H[Private research console]
+  H --> I[Traceable product decision]
 ```
 
-## Tech stack
+## Hackathon evidence standard
+
+This repository deliberately separates product claims from evidence:
+
+1. A streak advances only after a specific proof of action.
+2. The public study endpoint exposes aggregate metrics, never raw feedback.
+3. Raw responses require server-side owner authorization.
+4. Every product decision records the user evidence, the change, and the rationale.
+5. The next submission milestone is 5–10 consented adult usability sessions and at least three evidence-linked decisions.
+
+Start Now is an experimental hackathon prototype, not a medical device, diagnosis tool, or substitute for professional care.
+
+## Stack
 
 - TypeScript, React 19, Next.js-compatible App Router
-- Vinext and Vite for Cloudflare Workers
-- Cloudflare D1 with Drizzle ORM
-- Sign in with ChatGPT identity headers for the protected research console
-- CSS-first responsive interface; no UI component dependency
+- Vinext + Vite on Cloudflare Workers
+- Cloudflare D1 + Drizzle ORM
+- Sign in with ChatGPT identity headers for protected research access
+- Dependency-light CSS interface
 
 ## Run locally
 
-Requirements: Node.js 22.13+ and a Linux/macOS shell environment.
+Requires Node.js 22.13+.
 
 ```bash
 npm install
@@ -54,46 +80,74 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Set `RESEARCH_OWNER_EMAILS` to a comma-separated allowlist of owner emails. Never commit `.env.local`.
+On Windows PowerShell:
+
+```powershell
+npm install
+Copy-Item .env.example .env.local
+npm run dev
+```
+
+Set these values in `.env.local`; never commit that file:
+
+```env
+RESEARCH_OWNER_EMAILS=owner@example.com
+STUDY_RATE_LIMIT_SALT=replace-with-a-long-random-value
+```
 
 ## Validate
+
+Linux/macOS/WSL uses the bounded production build:
 
 ```bash
 npm run lint
 npm run build
 ```
 
-After changing `db/schema.ts`, generate and review a migration:
+Native Windows can run the portable equivalent:
+
+```powershell
+npm run lint
+npm run build:portable
+```
+
+Schema changes require a reviewed migration:
 
 ```bash
 npm run db:generate
 ```
 
-## Privacy and research guardrails
+GitHub Actions repeats install, lint, production build, artifact checks, and rendered-output tests for every PR.
 
-- The public study endpoint returns aggregate counts only.
-- Raw feedback is available only through `/api/research`, which performs server-side owner authorization for every read and write.
-- The study asks participants not to provide names or contact details.
+## Privacy and abuse controls
+
+- Participants are asked not to submit names, contact details, schools, links, or diagnosis details.
 - Consent is restricted to adults 18+ in this prototype.
-- One study response is accepted per device key.
+- Device keys must be valid UUIDs and are unique in D1.
+- Submission attempts are throttled with an hourly salted hash; raw IP addresses are not stored.
+- A hidden honeypot quietly drops obvious automated submissions.
+- `/api/research` authorizes every read and write on the server.
+- Production must configure `RESEARCH_OWNER_EMAILS` and a long random `STUDY_RATE_LIMIT_SALT` before public testing.
 
-This is an experimental hackathon prototype, not a medical device or diagnostic tool.
-
-## Repository structure
+## Repository map
 
 ```text
-app/                 Product UI, study API, and protected research console
-db/                  Drizzle schema and D1 access
-drizzle/             Versioned database migrations
-worker/              Cloudflare Worker entry point
-scripts/             Reproducible build and artifact validation
-.openai/hosting.json Sites binding declaration
+app/                  Product UI, study API, protected research console
+db/                   Drizzle schema and D1 bridge
+drizzle/              Versioned D1 migrations
+worker/               Cloudflare Worker entry point
+scripts/              Reproducible and portable build validation
+.github/workflows/    Continuous integration
+.openai/hosting.json  Sites binding declaration
 ```
 
-## Why the Research Console matters
+## Project status
 
-The project does not claim impact from a polished interface alone. The private console turns anonymous feedback into categorized evidence and forces every product decision to document what a participant said, what changed, and why. That creates an auditable research trail for future hackathon evaluation.
+- Product experience: functional
+- Research Console: functional, owner-only
+- Public recruitment: intentionally not opened yet
+- Next gate: configure production secrets, validate abuse controls, then recruit real testers
 
 ## License
 
-No open-source license has been selected yet. All rights reserved by the project owner.
+No open-source license has been selected. All rights reserved by the project owner.

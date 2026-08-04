@@ -25,3 +25,9 @@ export const researchDecisions = sqliteTable("research_decisions", {
   status: text("status").notNull().default("planned"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const studyRateLimits = sqliteTable("study_rate_limits", {
+  key: text("key").primaryKey(),
+  attemptCount: integer("attempt_count").notNull().default(1),
+  createdAt: integer("created_at").notNull(),
+});

@@ -112,6 +112,7 @@ export default function Home() {
   const [studyReturn, setStudyReturn] = useState("");
   const [studyFeedback, setStudyFeedback] = useState("");
   const [studyChange, setStudyChange] = useState("");
+  const [studyWebsite, setStudyWebsite] = useState("");
   const [studyAdult, setStudyAdult] = useState(false);
   const [studyConsent, setStudyConsent] = useState(false);
   const [studyStatus, setStudyStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -353,6 +354,7 @@ export default function Home() {
           changeRequest: studyChange,
           adult: studyAdult,
           consent: studyConsent,
+          website: studyWebsite,
         }),
       });
       const result = await response.json() as { error?: string; responses?: number };
@@ -427,6 +429,7 @@ export default function Home() {
             {studyStatus === "sent" ? <div className="study-success"><span>✓</span><h2>Your evidence is in.</h2><p>Thank you. Your response can now influence the next product decision. No identity or contact information was collected.</p><button className="primary" onClick={resetToToday}>RETURN TO START NOW <span>→</span></button></div> : <>
               <div className="study-guardrail"><b>RESEARCH GUARDRAILS</b><p>18+ only · voluntary · anonymous · no names, emails, schools, links, or diagnosis details · one response per device · stop at any time</p></div>
               <div className="study-form">
+                <label className="study-honeypot" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={studyWebsite} onChange={(event) => setStudyWebsite(event.target.value)} /></label>
                 <fieldset><legend>1. YOUR RELATIONSHIP TO THIS PROBLEM</legend><div className="study-options">{[["neurodivergent","I identify as neurodivergent"],["ally","Friend / family / ally"],["educator","Educator / mentor"],["prefer_not","Prefer not to say"]].map(([value,label]) => <button key={value} className={studyRelationship === value ? "active" : ""} onClick={() => setStudyRelationship(value)} aria-pressed={studyRelationship === value}>{label}</button>)}</div></fieldset>
                 <fieldset><legend>2. AFTER USING THE FULL FLOW</legend><div className="rating-row"><div><span>How useful was it for starting?</span><div>{[1,2,3,4,5].map((n) => <button key={n} className={studyUsefulness === n ? "active" : ""} onClick={() => setStudyUsefulness(n)} aria-label={`Usefulness ${n} of 5`}>{n}</button>)}</div><small>1 = not useful · 5 = immediately useful</small></div><div><span>Did the intervention feel understood?</span><div>{[1,2,3,4,5].map((n) => <button key={n} className={studyUnderstood === n ? "active" : ""} onClick={() => setStudyUnderstood(n)} aria-label={`Understood ${n} of 5`}>{n}</button>)}</div><small>1 = generic · 5 = matched my state</small></div></div></fieldset>
                 <fieldset><legend>3. WHERE DID THE PRODUCT CREATE FRICTION?</legend><div className="study-options compact">{[["checkin","Check-in"],["mission","Suggested move"],["timer","60-second room"],["proof","Proof of start"],["none","No major friction"]].map(([value,label]) => <button key={value} className={studyHardest === value ? "active" : ""} onClick={() => setStudyHardest(value)} aria-pressed={studyHardest === value}>{label}</button>)}</div></fieldset>

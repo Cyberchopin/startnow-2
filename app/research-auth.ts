@@ -2,6 +2,7 @@ import { getChatGPTUser } from "./chatgpt-auth";
 
 declare global {
   var __START_NOW_OWNER_EMAILS__: string | undefined;
+  var __START_NOW_RATE_LIMIT_SALT__: string | undefined;
 }
 
 function ownerEmails() {

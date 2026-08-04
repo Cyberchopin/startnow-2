@@ -6,6 +6,7 @@ interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   RESEARCH_OWNER_EMAILS?: string;
+  STUDY_RATE_LIMIT_SALT?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -30,6 +31,7 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     (globalThis as typeof globalThis & { __START_NOW_DB__?: D1Database }).__START_NOW_DB__ = env.DB;
     (globalThis as typeof globalThis & { __START_NOW_OWNER_EMAILS__?: string }).__START_NOW_OWNER_EMAILS__ = env.RESEARCH_OWNER_EMAILS;
+    (globalThis as typeof globalThis & { __START_NOW_RATE_LIMIT_SALT__?: string }).__START_NOW_RATE_LIMIT_SALT__ = env.STUDY_RATE_LIMIT_SALT;
     const url = new URL(request.url);
 
     if (url.pathname === "/_vinext/image") {
