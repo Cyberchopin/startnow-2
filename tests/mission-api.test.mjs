@@ -53,6 +53,29 @@ test("rejects malformed mission requests", async () => {
   assert.equal(response.status, 400);
 });
 
+test("supports a learning task with a safe, shame-free fallback", async () => {
+  const worker = await loadWorker();
+  const response = await worker.fetch(new Request("http://localhost/api/mission", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      task: "Start the machine learning homework",
+      kind: "learning",
+      friction: "fear",
+      energy: 2,
+      overwhelm: 2,
+      shrinkLevel: 0,
+      matchingStarts: 0,
+      learnedShrinkLevel: 0,
+    }),
+  }), environment, context);
+
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.source, "fallback");
+  assert.match(result.mission, /rough answer fragment/);
+});
+
 test("accepts validated Gemini structured output and opts out of interaction storage", async () => {
   const worker = await loadWorker();
   const originalFetch = globalThis.fetch;
